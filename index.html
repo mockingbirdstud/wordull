@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Our Wordull</title>
+
+<style>
+body{
+    background:#121213;
+    color:white;
+    font-family:Arial,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin-top:20px;
+}
+
+#board{
+    display:grid;
+    grid-template-rows:repeat(6,1fr);
+    gap:6px;
+}
+
+.row{
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    gap:6px;
+}
+
+.cell{
+    width:60px;
+    height:60px;
+    border:2px solid #3a3a3c;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:32px;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.selected{
+    border:3px solid white;
+}
+
+.gray{background:#3a3a3c;}
+.yellow{background:#b59f3b;}
+.green{background:#538d4e;}
+
+.controls{
+    margin-top:20px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:center;
+}
+
+button{
+    padding:12px 18px;
+    font-size:16px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Our Wordull</h2>
+
+<div id="board"></div>
+
+<div class="controls">
+    <button id="grayBtn">⬜ Gray</button>
+    <button id="yellowBtn">🟨 Yellow</button>
+    <button id="greenBtn">🟩 Green</button>
+    <button id="clearBtn">Clear Color</button>
+</div>
+
+<div class="controls">
+    <button id="resetBtn">Reset Board</button>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAWa3W_heraavHuND8ccRts98cSyLcIXsc",
+  authDomain: "tt-and-bd-wurdull.firebaseapp.com",
+  projectId: "tt-and-bd-wurdull",
+  storageBucket: "tt-and-bd-wurdull.firebasestorage.app",
+  messagingSenderId: "58522806041",
+  appId: "1:58522806041:web:35aa9ebbae0c5b325dc788"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const boardRef = doc(db,"boards","main");
+
+const board = document.getElementById("board");
+
+let selectedIndex = null;
+let currentData = [];
+
+function draw(data){
+
+    currentData = data;
+    board.innerHTML = "";
+
+    for(let r=0;r<6;r++){
+
+        const row=document.createElement("div");
+        row.className="row";
+
+        for(let c=0;c<5;c++){
+
+            const index=r*5+c;
+            const item=data[index];
+
+            const cell=document.createElement("div");
+            cell.className="cell";
+
+            if(item.color){
+                cell.classList.add(item.color);
+            }
+
+            if(index===selectedIndex){
+                cell.classList.add("selected");
+            }
+
+            cell.textContent=item.letter || "";
+
+            cell.onclick=async()=>{
+
+                if(selectedIndex===index){
+
+                    const letter=prompt(
+                        "Letter?",
+                        item.letter || ""
+                    );
+
+                    if(letter!==null){
+
+                        data[index].letter=
+                        letter.substring(0,1).toUpperCase();
+
+                        await setDoc(boardRef,{cells:data});
+                    }
+
+                }else{
+
+                    selectedIndex=index;
+                    draw(data);
+
+                }
+            };
+
+            row.appendChild(cell);
+        }
+
+        board.appendChild(row);
+    }
+}
+
+async function setColor(color){
+
+    if(selectedIndex===null) return;
+
+    currentData[selectedIndex].color=color;
+
+    await setDoc(boardRef,{
+        cells:currentData
+    });
+}
+
+document.getElementById("grayBtn")
+.onclick=()=>setColor("gray");
+
+document.getElementById("yellowBtn")
+.onclick=()=>setColor("yellow");
+
+document.getElementById("greenBtn")
+.onclick=()=>setColor("green");
+
+document.getElementById("clearBtn")
+.onclick=()=>setColor("");
+
+document.getElementById("resetBtn")
+.onclick=async()=>{
+
+    if(!confirm("Reset board?")) return;
+
+    const starter=[];
+
+    for(let i=0;i<30;i++){
+        starter.push({
+            letter:"",
+            color:""
+        });
+    }
+
+    selectedIndex=null;
+
+    await setDoc(boardRef,{
+        cells:starter
+    });
+};
+
+async function init(){
+
+    const snap=await getDoc(boardRef);
+
+    if(!snap.exists()){
+
+        const starter=[];
+
+        for(let i=0;i<30;i++){
+            starter.push({
+                letter:"",
+                color:""
+            });
+        }
+
+        await setDoc(boardRef,{
+            cells:starter
+        });
+    }
+
+    onSnapshot(boardRef,(snapshot)=>{
+
+        draw(snapshot.data().cells);
+
+    });
+}
+
+init();
+
+</script>
+
+</body>
+</html>
